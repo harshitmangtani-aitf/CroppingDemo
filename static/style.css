@@ -1,0 +1,201 @@
+/* Custom styles for Motorcycle Image Cropping Demo */
+
+.language-switcher {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+}
+
+/* Layout improvements */
+.container-fluid {
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.left-panel, .right-panel {
+    padding: 20px;
+}
+
+.left-panel {
+    border-right: 1px solid #e0e0e0;
+    background-color: #fafafa;
+}
+
+.right-panel {
+    background-color: #fff;
+}
+
+.results-panel {
+    padding: 20px 0;
+}
+
+.upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #fff;
+}
+
+.upload-area:hover {
+    border-color: #007bff;
+    background-color: #f0f8ff;
+}
+
+.upload-area.dragover {
+    border-color: #007bff;
+    background-color: #e3f2fd;
+    transform: scale(1.02);
+}
+
+.preview-container {
+    max-width: 100%;
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.preview-container h5 {
+    margin-bottom: 15px;
+    color: #495057;
+    font-weight: 600;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 8px;
+}
+
+.preview-image {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+}
+
+.clickable-image {
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clickable-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.output-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    background-color: #fff;
+}
+
+.output-item h6 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #495057;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 5px;
+}
+
+.form-range {
+    margin-bottom: 10px;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+    padding: 12px 30px;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.alert {
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Japanese font support */
+html[lang="ja"] {
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Yu Gothic", "Meiryo", sans-serif;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991px) {
+    .left-panel {
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+
+}
+
+@media (max-width: 768px) {
+    .language-switcher {
+        position: relative;
+        top: 0;
+        right: 0;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .upload-area {
+        padding: 20px;
+    }
+    
+    .container-fluid {
+        padding: 10px;
+    }
+    
+    .left-panel, .right-panel {
+        padding: 15px;
+    }
+}
+
+/* Modal improvements */
+.modal-xl {
+    max-width: 90vw;
+}
+
+.modal-body img {
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.form-control-color {
+    width: 100%;
+    height: 38px;
+}
+
+/* Slider value display */
+#targetSizeValue, #paddingValue {
+    font-weight: 600;
+    color: #007bff;
+    margin-left: 10px;
+}
+
+/* Better spacing for form controls */
+.form-label {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.form-range {
+    margin-bottom: 5px;
+}

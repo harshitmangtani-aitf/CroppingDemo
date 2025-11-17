@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ get_text('title', lang) }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+
+<body>
+    <div class="language-switcher">
+        <a href="?lang=en" class="btn btn-sm btn-outline-primary">English</a>
+        <a href="?lang=ja" class="btn btn-sm btn-outline-primary">日本語</a>
+    </div>
+
+
+    <!-- Image Preview Modal -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">{{ get_text('original_image', lang) if lang == 'en'
+                        else '画像プレビュー' }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" class="img-fluid" alt="Large preview">
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-lg-6 left-panel">
+                <h2 class="mb-4">{{ get_text('title', lang) }}</h2>
+                <p class="text-muted mb-4">{{ get_text('upload_text', lang) }}</p>
+
+                <div class="upload-area" id="uploadArea">
+                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                    <h5>{{ get_text('click_upload', lang) }}</h5>
+                    <p class="text-muted">{{ get_text('supported_formats', lang) }}</p>
+                    <input type="file" id="imageInput" name="image" accept="image/*" style="display: none;">
+                </div>
+
+                <div id="previewContainer" class="preview-container" style="display: none;">
+                    <h5>{{ get_text('original_image', lang) }}</h5>
+                    <img id="originalPreview" class="preview-image clickable-image" alt="Original image preview">
+                </div>
+
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="bikeLength" class="form-label">{{ get_text('bike_length', lang) }}</label>
+                            <input type="number" class="form-control" id="bikeLength" name="bike_length" value="2200"
+                                min="500" max="5000">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="baseLength" class="form-label">{{ get_text('base_length', lang) }}</label>
+                            <input type="number" class="form-control" id="baseLength" name="base_length" value="2200"
+                                min="500" max="5000">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="targetSize" class="form-label">{{ get_text('target_size', lang) }}</label>
+                            <input type="range" class="form-range" id="targetSize" name="target_size" min="128"
+                                max="1024" value="512" step="1">
+                            <span id="targetSizeValue">512</span>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="padding" class="form-label">{{ get_text('padding', lang) }}</label>
+                            <input type="range" class="form-range" id="padding" name="padding" min="0" max="200"
+                                value="5" step="1">
+                            <span id="paddingValue">5</span>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="fillMethod" class="form-label">{{ get_text('fill_method', lang) }}</label>
+                            <select class="form-select" id="fillMethod" name="fill_method">
+                                <option value="heuristic_blur" selected>Heuristic Blur</option>
+                                <option value="mirror">Mirror</option>
+                                <option value="solid_color">Solid Color</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="hardColor" class="form-label">{{ get_text('hard_color', lang) }}</label>
+                            <input type="color" class="form-control form-control-color" id="hardColor" name="hard_color"
+                                value="#FFFFFF">
+                        </div>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg" id="processBtn" disabled>
+                            <span id="btnText">{{ get_text('process_image', lang) }}</span>
+                            <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2"
+                                style="display: none;"></span>
+                        </button>
+                    </div>
+                </form>
+
+                <div id="errorContainer" class="alert alert-danger" style="display: none;">
+                    <span id="errorMessage"></span>
+                </div>
+            </div>
+
+            <div class="col-lg-6 right-panel">
+                <div id="resultContainer" class="results-panel" style="display: none;">
+                    <h4 class="mb-4">{{ get_text('processed_result', lang) if lang == 'en' else '処理結果' }}</h4>
+
+                    <div class="output-item mb-4">
+                        <h6>{{ get_text('output1', lang) }}</h6>
+                        <img id="output1Image" class="preview-image clickable-image" alt="Output 1">
+                        <div class="mt-2">
+                            <a id="download1Link" class="btn btn-sm btn-success" download="natural_tight_crop.png">
+                                {{ get_text('download_result', lang) }} 1
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="output-item mb-4">
+                        <h6>{{ get_text('output2', lang) }}</h6>
+                        <img id="output2Image" class="preview-image clickable-image" alt="Output 2">
+                        <div class="mt-2">
+                            <a id="download2Link" class="btn btn-sm btn-success" download="size_aware_scaled.png">
+                                {{ get_text('download_result', lang) }} 2
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="output-item mb-4">
+                        <h6>{{ get_text('output3', lang) }}</h6>
+                        <img id="output3Image" class="preview-image clickable-image" alt="Output 3">
+                        <div class="mt-2">
+                            <a id="download3Link" class="btn btn-sm btn-success"
+                                download="floor_trimmed_top_filled.png">
+                                {{ get_text('download_result', lang) }} 3
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const uploadArea = document.getElementById('uploadArea');
+            const imageInput = document.getElementById('imageInput');
+            const uploadForm = document.getElementById('uploadForm');
+            const processBtn = document.getElementById('processBtn');
+            const btnText = document.getElementById('btnText');
+            const btnSpinner = document.getElementById('btnSpinner');
+            const targetSizeSlider = document.getElementById('targetSize');
+            const targetSizeValue = document.getElementById('targetSizeValue');
+            const paddingSlider = document.getElementById('padding');
+            const paddingValue = document.getElementById('paddingValue');
+            const previewContainer = document.getElementById('previewContainer');
+            const originalPreview = document.getElementById('originalPreview');
+            const resultContainer = document.getElementById('resultContainer');
+            const output1Image = document.getElementById('output1Image');
+            const output2Image = document.getElementById('output2Image');
+            const output3Image = document.getElementById('output3Image');
+            const download1Link = document.getElementById('download1Link');
+            const download2Link = document.getElementById('download2Link');
+            const download3Link = document.getElementById('download3Link');
+            const errorContainer = document.getElementById('errorContainer');
+            const errorMessage = document.getElementById('errorMessage');
+
+            const lang = '{{ lang }}';
+            const processingText = lang === 'ja' ? '処理中...' : 'Processing...';
+            const processText = lang === 'ja' ? '画像を処理' : 'Process Image';
+            const networkError = lang === 'ja' ? 'ネットワークエラーが発生しました' : 'Network error occurred';
+
+            // Slider updates
+            targetSizeSlider.addEventListener('input', function () {
+                targetSizeValue.textContent = this.value;
+            });
+
+            paddingSlider.addEventListener('input', function () {
+                paddingValue.textContent = this.value;
+            });
+
+            // Upload area click
+            uploadArea.addEventListener('click', function () {
+                imageInput.click();
+            });
+
+            // Drag and drop
+            uploadArea.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', function () {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', function (e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    imageInput.files = files;
+                    handleFileSelect();
+                }
+            });
+
+            // File input change
+            imageInput.addEventListener('change', handleFileSelect);
+
+            function handleFileSelect() {
+                const file = imageInput.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        originalPreview.src = e.target.result;
+                        previewContainer.style.display = 'block';
+                        processBtn.disabled = false;
+                        resultContainer.style.display = 'none';
+                        errorContainer.style.display = 'none';
+
+                        // Setup click handler for original image
+                        setupImageClick(originalPreview, lang === 'ja' ? '元の画像' : 'Original Image');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+
+            // Image preview modal
+            const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+            const modalImage = document.getElementById('modalImage');
+            const modalTitle = document.getElementById('imageModalLabel');
+
+            function setupImageClick(img, title) {
+                img.addEventListener('click', function () {
+                    modalImage.src = this.src;
+                    modalTitle.textContent = title;
+                    imageModal.show();
+                });
+            }
+
+            // Process button click handler
+            processBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                processImage();
+            });
+
+            // Form submission (also handle enter key)
+            uploadForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                processImage();
+            });
+
+            function processImage() {
+                console.log('processImage() called');
+
+                // Check if image is selected
+                if (!imageInput.files[0]) {
+                    errorMessage.textContent = lang === 'ja' ? '画像を選択してください' : 'Please select an image';
+                    errorContainer.style.display = 'block';
+                    return;
+                }
+
+                // Create FormData and manually append all values
+                const formData = new FormData();
+
+                // Add the image file
+                formData.append('image', imageInput.files[0]);
+
+                // Add all form parameters
+                formData.append('bike_length', document.getElementById('bikeLength').value);
+                formData.append('base_length', document.getElementById('baseLength').value);
+                formData.append('target_size', document.getElementById('targetSize').value);
+                formData.append('padding', document.getElementById('padding').value);
+                formData.append('fill_method', document.getElementById('fillMethod').value);
+                formData.append('hard_color', document.getElementById('hardColor').value);
+
+                // Debug log
+                console.log('Form data prepared:', {
+                    image: imageInput.files[0]?.name,
+                    bike_length: document.getElementById('bikeLength').value,
+                    base_length: document.getElementById('baseLength').value,
+                    target_size: document.getElementById('targetSize').value,
+                    padding: document.getElementById('padding').value,
+                    fill_method: document.getElementById('fillMethod').value,
+                    hard_color: document.getElementById('hardColor').value
+                });
+
+                // Show loading state
+                processBtn.disabled = true;
+                btnSpinner.style.display = 'inline-block';
+                btnText.textContent = processingText;
+                errorContainer.style.display = 'none';
+
+                fetch('/process?lang=' + lang, {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Response data:', data);
+                        if (data.success) {
+                            if (data.output1) {
+                                output1Image.src = data.output1;
+                                download1Link.href = data.output1;
+                                setupImageClick(output1Image, lang === 'ja' ? '自然なタイトクロップ' : 'Natural tight crop');
+                            }
+                            if (data.output2) {
+                                output2Image.src = data.output2;
+                                download2Link.href = data.output2;
+                                setupImageClick(output2Image, lang === 'ja' ? 'サイズ対応スケール出力' : 'Size-aware scaled output');
+                            }
+                            if (data.output3) {
+                                output3Image.src = data.output3;
+                                download3Link.href = data.output3;
+                                setupImageClick(output3Image, lang === 'ja' ? '床トリム・上部塗りつぶし' : 'Floor trimmed & top-filled');
+                            }
+                            resultContainer.style.display = 'block';
+                        } else {
+                            errorMessage.textContent = data.error;
+                            errorContainer.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Fetch error:', error);
+                        errorMessage.textContent = networkError + ': ' + error.message;
+                        errorContainer.style.display = 'block';
+                    })
+                    .finally(() => {
+                        // Reset button state
+                        processBtn.disabled = false;
+                        btnSpinner.style.display = 'none';
+                        btnText.textContent = processText;
+                    });
+            }
+        });
+    </script>
+</body>
+
+</html>
