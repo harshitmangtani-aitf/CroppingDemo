@@ -25,16 +25,14 @@ TRANSLATIONS = {
         'click_upload': 'Click to upload or drag and drop',
         'supported_formats': 'Supported formats: JPG, PNG, GIF',
         'bike_length': 'Estimated motorcycle length (mm)',
-        'base_length': 'Base/reference length (mm)',
-        'target_size': 'Target square canvas size (px)',
-        'padding': 'Padding (px) around tight crop (used for Outputs 1 & 2)',
+        'padding': 'Padding (px) around tight crop (used for other UI options)',
         'fill_method': 'Fill method for top (Output 3)',
         'hard_color': 'Hard color hex (used for solid_color)',
         'process_image': 'Process Image',
         'processing': 'Processing...',
         'original_image': 'Original Image',
         'output1': 'Natural tight crop',
-        'output2': 'Size-aware scaled output',
+        'output2': 'Size-aware scaled output (bottom-centered on original-size canvas)',
         'output3': 'Original width, floor trimmed & top-filled',
         'download_result': 'Download Result',
         'no_image_uploaded': 'No image uploaded',
@@ -50,16 +48,14 @@ TRANSLATIONS = {
         'click_upload': 'クリックしてアップロードまたはドラッグ&ドロップ',
         'supported_formats': '対応形式：JPG、PNG、GIF',
         'bike_length': '推定バイク長（mm）',
-        'base_length': 'ベース/参照長（mm）',
-        'target_size': 'ターゲット正方形キャンバスサイズ（px）',
-        'padding': 'タイトクロップ周りのパディング（px）（出力1と2で使用）',
+        'padding': 'タイトクロップ周りのパディング（px）（その他のUIオプションで使用）',
         'fill_method': '上部の塗りつぶし方法（出力3）',
         'hard_color': 'ハードカラー16進数（solid_colorで使用）',
         'process_image': '画像を処理',
         'processing': '処理中...',
         'original_image': '元の画像',
         'output1': '自然なタイトクロップ',
-        'output2': 'サイズ対応スケール出力',
+        'output2': 'サイズ対応スケール出力（元サイズキャンバス下部中央配置）',
         'output3': '元幅、床トリム・上部塗りつぶし',
         'download_result': '結果をダウンロード',
         'no_image_uploaded': '画像がアップロードされていません',
@@ -82,6 +78,9 @@ MORPH_KERNEL = (3, 3)
 DILATE_KERNEL = (3, 3)
 BLUR_KERNEL_LARGE = (31, 31)
 BLUR_KERNEL_MED = (21, 21)
+
+# --- FIXED REFERENCE LENGTH ---
+BASE_LENGTH_MM = 1620  # fixed; removed from UI
 
 # ---------------- detection / mask helpers ----------------
 def resize_for_processing(img_rgb, max_side=MAX_PROC_SIDE):
@@ -201,7 +200,7 @@ def compute_single_mask_and_crops(original_rgb, ui_padding):
     else:
         ymin_o, ymax_o = int(ys.min()), int(ys.max())
         xmin_o, xmax_o = int(xs.min()), int(xs.max())
-        # padding = 5 for mask-based crop
+        # padding=5 fixed for mask-based crop
         crop_coords_5 = (max(0, xmin_o - 5), max(0, ymin_o - 5), min(W_orig - 1, xmax_o + 5), min(H_orig - 1, ymax_o + 5))
     # Build pil_crop_5
     xmin5, ymin5, xmax5, ymax5 = crop_coords_5
@@ -221,30 +220,51 @@ def compute_single_mask_and_crops(original_rgb, ui_padding):
         bike_px_w_ui = (xmax_ui - xmin_ui + 1)
     return mask_orig, crop_coords_5, pil_crop_ui, bike_px_w_ui, pil_crop_5
 
-# ---------------- scaling center canvas (unchanged) ----------------
-def scale_center_on_canvas(pil_rgb, bike_pixel_width, bike_length_mm, base_length_mm=2200, target_size=512, ref_frac=0.6):
+# ---------------- scaling onto original-size canvas (bottom-centered) ----------------
+def scale_center_on_canvas(pil_rgb, bike_pixel_width, bike_length_mm, base_length_mm=BASE_LENGTH_MM, canvas_size=None, ref_frac=0.6):
     if pil_rgb is None:
         return None
+    if canvas_size is None:
+        canvas_w, canvas_h = 512, 512
+    else:
+        canvas_w, canvas_h = int(canvas_size[0]), int(canvas_size[1])
+    if canvas_w <= 0 or canvas_h <= 0:
+        canvas_w, canvas_h = 512, 512
+    
+    w, h = pil_rgb.size
     if bike_pixel_width is None or bike_pixel_width == 0:
-        w, h = pil_rgb.size
-        scale = min(target_size / max(1, w), target_size / max(1, h), 1.0)
+        scale = min(canvas_w / max(1, w), canvas_h / max(1, h), 1.0)
         new_w = max(1, int(round(w * scale))); new_h = max(1, int(round(h * scale)))
         resized = pil_rgb.resize((new_w, new_h), resample=Image.LANCZOS)
-        canvas = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
-        left = (target_size - new_w) // 2; top = (target_size - new_h) // 2
+        canvas = Image.new("RGBA", (canvas_w, canvas_h), (255, 255, 255, 255))
+        left = (canvas_w - new_w) // 2
+        top = canvas_h - new_h
+        if top < 0:
+            top = 0
         canvas.paste(resized.convert("RGBA"), (left, top), resized.convert("RGBA"))
         return canvas
+    
     try:
         scale_real = float(bike_length_mm) / float(base_length_mm) if (bike_length_mm and base_length_mm) else 1.0
     except Exception:
         scale_real = 1.0
-    desired_bike_px = int(target_size * ref_frac * scale_real); desired_bike_px = max(1, desired_bike_px)
+    
+    desired_bike_px = int(canvas_w * ref_frac * scale_real)
+    desired_bike_px = max(1, desired_bike_px)
     ratio = desired_bike_px / float(bike_pixel_width)
-    w, h = pil_rgb.size
     new_w = max(1, int(round(w * ratio))); new_h = max(1, int(round(h * ratio)))
+    
+    # Ensure it fits within canvas
+    if new_w > canvas_w or new_h > canvas_h:
+        scale_fit = min(canvas_w / new_w, canvas_h / new_h)
+        new_w = max(1, int(round(new_w * scale_fit))); new_h = max(1, int(round(new_h * scale_fit)))
+    
     resized = pil_rgb.resize((new_w, new_h), resample=Image.LANCZOS)
-    canvas = Image.new("RGBA", (target_size, target_size), (0, 0, 0, 0))
-    left = (target_size - new_w) // 2; top = (target_size - new_h) // 2
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), (255, 255, 255, 255))
+    left = (canvas_w - new_w) // 2
+    top = canvas_h - new_h
+    if top < 0:
+        top = 0
     canvas.paste(resized.convert("RGBA"), (left, top), resized.convert("RGBA"))
     return canvas
 
@@ -322,10 +342,10 @@ def trim_floor_and_fill_top(original_rgb, crop_mask, crop_coords, fill_method='h
     return Image.fromarray(out.astype(np.uint8))
 
 # ---------------- main processing handler ----------------
-def process_motorcycle_image(uploaded_img, bike_length_mm=2200.0, base_length_mm=2200.0, target_size=512, padding=5, fill_method="heuristic_blur", hard_color_hex="#FFFFFF"):
+def process_motorcycle_image(uploaded_img, bike_length_mm=2200.0, padding=5, fill_method="heuristic_blur", hard_color_hex="#FFFFFF"):
     """Returns:
     - Natural tight crop (PIL RGB) using UI padding (derived from single mask run)
-    - Size-aware scaled output (PIL RGBA)
+    - Size-aware scaled output (PIL RGBA) - bottom-centered on original-size canvas
     - Original-size image with floor trimmed & top filled (mask produced with padding=5)
     """
     if uploaded_img is None:
@@ -336,19 +356,26 @@ def process_motorcycle_image(uploaded_img, bike_length_mm=2200.0, base_length_mm
         hard_color = (255, 255, 255)
     
     original_rgb = uploaded_img.copy()
-    # Single detection+grabcut with padding=5 (faster due to smaller proc resolution)
+    H_orig, W_orig = original_rgb.shape[:2]
+    
+    # SINGLE detection+grabcut (mask/crop_coords use padding=5 internally).
+    # We pass ui_padding=padding so pil_crop_ui respects the user's padding for Output 1.
     mask_orig, crop_coords_5, pil_crop_ui, bike_px_w_ui, pil_crop_5 = compute_single_mask_and_crops(original_rgb, ui_padding=padding)
-    # Output 1: pil_crop_ui (crop using UI padding derived from single mask)
+    
+    # Output 1: tight crop using dynamic user padding
     out1 = pil_crop_ui
-    # Output 2: scaled
-    out2 = scale_center_on_canvas(pil_crop_ui, bike_px_w_ui, bike_length_mm, base_length_mm, target_size, ref_frac=0.6)
-    # Output 3: trim floor using mask/crop_coords_5 (mask based on padding=5), fill top
-    # Build crop_mask corresponding to crop_coords_5: crop mask from mask_orig
+    
+    # For Output 2 we MUST use padding=5 crop (pil_crop_5). Compute bike pixel width for padding=5 crop:
     xmin5, ymin5, xmax5, ymax5 = crop_coords_5
+    bike_px_w_5 = (xmax5 - xmin5 + 1) if (xmax5 > xmin5) else None
+    
+    # Output 2: scaled placed onto original-size canvas, bottom-centered — uses fixed padding=5 crop
+    out2 = scale_center_on_canvas(pil_crop_5, bike_px_w_5, bike_length_mm, base_length_mm=BASE_LENGTH_MM, canvas_size=(W_orig, H_orig), ref_frac=0.6)
+    
+    # Output 3: trim floor & fill top (uses default padding=5 inside function)
     if mask_orig is None or mask_orig.size == 0:
         crop_mask5 = None
     else:
-        # crop mask to same coords
         crop_mask5 = mask_orig[ymin5:ymax5 + 1, xmin5:xmax5 + 1]
     out3 = trim_floor_and_fill_top(original_rgb, crop_mask5, crop_coords_5, fill_method=fill_method, hard_color=hard_color)
     return out1, out2, out3
@@ -383,16 +410,13 @@ def process():
         
         # Get parameters
         bike_length_mm = float(request.form.get('bike_length', 2200))
-        base_length_mm = float(request.form.get('base_length', 2200))
-        target_size = int(request.form.get('target_size', 512))
         padding = int(request.form.get('padding', 5))
         fill_method = request.form.get('fill_method', 'heuristic_blur')
         hard_color_hex = request.form.get('hard_color', '#FFFFFF')
         
         # Process image - get all 3 outputs
         out1, out2, out3 = process_motorcycle_image(
-            original_rgb, bike_length_mm, base_length_mm, 
-            target_size, padding, fill_method, hard_color_hex
+            original_rgb, bike_length_mm, padding, fill_method, hard_color_hex
         )
         
         if out1 is None:

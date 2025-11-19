@@ -59,20 +59,6 @@
                                 min="500" max="5000">
                         </div>
                         <div class="col-md-6">
-                            <label for="baseLength" class="form-label">{{ get_text('base_length', lang) }}</label>
-                            <input type="number" class="form-control" id="baseLength" name="base_length" value="2200"
-                                min="500" max="5000">
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="targetSize" class="form-label">{{ get_text('target_size', lang) }}</label>
-                            <input type="range" class="form-range" id="targetSize" name="target_size" min="128"
-                                max="1024" value="512" step="1">
-                            <span id="targetSizeValue">512</span>
-                        </div>
-                        <div class="col-md-6">
                             <label for="padding" class="form-label">{{ get_text('padding', lang) }}</label>
                             <input type="range" class="form-range" id="padding" name="padding" min="0" max="200"
                                 value="5" step="1">
@@ -159,8 +145,6 @@
             const processBtn = document.getElementById('processBtn');
             const btnText = document.getElementById('btnText');
             const btnSpinner = document.getElementById('btnSpinner');
-            const targetSizeSlider = document.getElementById('targetSize');
-            const targetSizeValue = document.getElementById('targetSizeValue');
             const paddingSlider = document.getElementById('padding');
             const paddingValue = document.getElementById('paddingValue');
             const previewContainer = document.getElementById('previewContainer');
@@ -181,10 +165,6 @@
             const networkError = lang === 'ja' ? 'ネットワークエラーが発生しました' : 'Network error occurred';
 
             // Slider updates
-            targetSizeSlider.addEventListener('input', function () {
-                targetSizeValue.textContent = this.value;
-            });
-
             paddingSlider.addEventListener('input', function () {
                 paddingValue.textContent = this.value;
             });
@@ -278,8 +258,6 @@
 
                 // Add all form parameters
                 formData.append('bike_length', document.getElementById('bikeLength').value);
-                formData.append('base_length', document.getElementById('baseLength').value);
-                formData.append('target_size', document.getElementById('targetSize').value);
                 formData.append('padding', document.getElementById('padding').value);
                 formData.append('fill_method', document.getElementById('fillMethod').value);
                 formData.append('hard_color', document.getElementById('hardColor').value);
@@ -288,8 +266,6 @@
                 console.log('Form data prepared:', {
                     image: imageInput.files[0]?.name,
                     bike_length: document.getElementById('bikeLength').value,
-                    base_length: document.getElementById('baseLength').value,
-                    target_size: document.getElementById('targetSize').value,
                     padding: document.getElementById('padding').value,
                     fill_method: document.getElementById('fillMethod').value,
                     hard_color: document.getElementById('hardColor').value

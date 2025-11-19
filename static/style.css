@@ -184,7 +184,7 @@ html[lang="ja"] {
 }
 
 /* Slider value display */
-#targetSizeValue, #paddingValue {
+#paddingValue {
     font-weight: 600;
     color: #007bff;
     margin-left: 10px;
