@@ -27,7 +27,7 @@ pybabel compile -d translations
 
 3. Run the application / アプリケーションを実行:
 ```bash
-python app.py
+python simple_app.py
 ```
 
 4. Open your browser to / ブラウザで開く: `http://localhost:5000`
