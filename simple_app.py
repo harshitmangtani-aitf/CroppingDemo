@@ -345,7 +345,7 @@ def trim_floor_and_fill_top(original_rgb, crop_mask, crop_coords, fill_method='h
 def process_motorcycle_image(uploaded_img, bike_length_mm=2200.0, padding=5, fill_method="heuristic_blur", hard_color_hex="#FFFFFF"):
     """Returns:
     - Natural tight crop (PIL RGB) using UI padding (derived from single mask run)
-    - Size-aware scaled output (PIL RGBA) - bottom-centered on original-size canvas
+    - Size-aware scaled output (PIL RGB) - bottom-centered on original-size canvas
     - Original-size image with floor trimmed & top filled (mask produced with padding=5)
     """
     if uploaded_img is None:
@@ -358,19 +358,81 @@ def process_motorcycle_image(uploaded_img, bike_length_mm=2200.0, padding=5, fil
     original_rgb = uploaded_img.copy()
     H_orig, W_orig = original_rgb.shape[:2]
     
-    # SINGLE detection+grabcut (mask/crop_coords use padding=5 internally).
-    # We pass ui_padding=padding so pil_crop_ui respects the user's padding for Output 1.
+    # Single detection+grabcut (mask/crop_coords use padding=5 internally).
+    # We pass ui_padding=padding so Output 1 respects user padding.
     mask_orig, crop_coords_5, pil_crop_ui, bike_px_w_ui, pil_crop_5 = compute_single_mask_and_crops(original_rgb, ui_padding=padding)
     
     # Output 1: tight crop using dynamic user padding
     out1 = pil_crop_ui
     
-    # For Output 2 we MUST use padding=5 crop (pil_crop_5). Compute bike pixel width for padding=5 crop:
+    # Prepare values from padding=5 crop
     xmin5, ymin5, xmax5, ymax5 = crop_coords_5
+    w_crop5, h_crop5 = pil_crop_5.size
     bike_px_w_5 = (xmax5 - xmin5 + 1) if (xmax5 > xmin5) else None
     
-    # Output 2: scaled placed onto original-size canvas, bottom-centered — uses fixed padding=5 crop
-    out2 = scale_center_on_canvas(pil_crop_5, bike_px_w_5, bike_length_mm, base_length_mm=BASE_LENGTH_MM, canvas_size=(W_orig, H_orig), ref_frac=0.6)
+    # Canvas size = original image size
+    canvas_w, canvas_h = W_orig, H_orig
+    ref_frac = 0.6
+    
+    # If we don't have a valid bike pixel width, fall back to previous canvas behavior
+    if bike_px_w_5 is None or bike_px_w_5 == 0:
+        out2 = scale_center_on_canvas(pil_crop_5, bike_px_w_5, bike_length_mm, base_length_mm=BASE_LENGTH_MM, canvas_size=(canvas_w, canvas_h), ref_frac=ref_frac)
+    else:
+        # 1) compute desired bike px (same formula as scale_center_on_canvas)
+        try:
+            scale_real = float(bike_length_mm) / float(BASE_LENGTH_MM) if (bike_length_mm and BASE_LENGTH_MM) else 1.0
+        except Exception:
+            scale_real = 1.0
+        desired_bike_px = int(canvas_w * ref_frac * scale_real)
+        desired_bike_px = max(1, desired_bike_px)
+        
+        # 2) ratio to resize crop5 -> new_w,new_h
+        ratio = desired_bike_px / float(bike_px_w_5)
+        new_w = max(1, int(round(w_crop5 * ratio)))
+        new_h = max(1, int(round(h_crop5 * ratio)))
+        
+        # 3) ensure resized fits canvas (same clamp as before). If clamped, update ratio.
+        if new_w > canvas_w or new_h > canvas_h:
+            scale_fit = min(canvas_w / new_w, canvas_h / new_h)
+            new_w = max(1, int(round(new_w * scale_fit)))
+            new_h = max(1, int(round(new_h * scale_fit)))
+            ratio = ratio * scale_fit
+        
+        # 4) compute paste position used by Output 2 (bottom-centered)
+        left = (canvas_w - new_w) // 2
+        top = canvas_h - new_h
+        if top < 0:
+            top = 0
+        
+        # 5) SCALE ENTIRE ORIGINAL by same ratio so bike has same pixel size
+        scaled_W = max(1, int(round(W_orig * ratio)))
+        scaled_H = max(1, int(round(H_orig * ratio)))
+        # cv2 expects (width, height)
+        scaled_orig = cv2.resize(original_rgb, (scaled_W, scaled_H), interpolation=cv2.INTER_LINEAR)
+        
+        # 6) compute window in scaled_orig so bike ends up at (left, top) in final canvas:
+        # bike's top-left in scaled original:
+        bike_x_scaled = int(round(xmin5 * ratio))
+        bike_y_scaled = int(round(ymin5 * ratio))
+        # we want bike_x_scaled -> left, bike_y_scaled -> top  => crop origin:
+        crop_x = bike_x_scaled - left
+        crop_y = bike_y_scaled - top
+        
+        # 7) extract canvas_w x canvas_h window from scaled_orig, with white padding if out-of-bounds
+        out_arr = np.ones((canvas_h, canvas_w, 3), dtype=np.uint8) * 255  # white background
+        src_x0 = max(0, crop_x)
+        src_y0 = max(0, crop_y)
+        src_x1 = min(scaled_W, crop_x + canvas_w)
+        src_y1 = min(scaled_H, crop_y + canvas_h)
+        dst_x0 = src_x0 - crop_x
+        dst_y0 = src_y0 - crop_y
+        dst_x1 = dst_x0 + (src_x1 - src_x0)
+        dst_y1 = dst_y0 + (src_y1 - src_y0)
+        
+        if src_x1 > src_x0 and src_y1 > src_y0:
+            out_arr[dst_y0:dst_y1, dst_x0:dst_x1] = scaled_orig[src_y0:src_y1, src_x0:src_x1]
+        
+        out2 = Image.fromarray(out_arr)
     
     # Output 3: trim floor & fill top (uses default padding=5 inside function)
     if mask_orig is None or mask_orig.size == 0:
